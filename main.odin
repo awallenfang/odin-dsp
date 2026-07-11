@@ -1,6 +1,7 @@
 package odin_dsp
 
 import "./transform"
+import "./filter"
 import "core:math"
 
 main :: proc() {
