@@ -11,9 +11,9 @@ SVFFilterMode :: enum {
 }
 
 
-SimperFilter :: union($T: typeid) {
-    SimperTanSVF(T),
-    SimperSinSVF(T),
+SimperFilterState :: union($T: typeid) {
+    SimperTanSVFState(T),
+    SimperSinSVFState(T),
 }
 
 set_cutoff :: proc{
@@ -36,11 +36,11 @@ init :: proc{
     init_simper_tan_svf
 }
 
-SimperTanSVF :: struct($T: typeid) where intrinsics.type_is_float(T) {
+SimperTanSVFState :: struct($T: typeid) where intrinsics.type_is_float(T) {
     ic1eq:       T,
     ic2eq:       T,
     cutoff:      T,
-    sample_rate: T,
+    sample_rate: f32,
     g:           T,
     res:         T,
     k:           T,
@@ -49,7 +49,7 @@ SimperTanSVF :: struct($T: typeid) where intrinsics.type_is_float(T) {
     mode:        SVFFilterMode,
 }
 
-init_simper_tan_svf :: proc(state: ^SimperTanSVF($T), sample_rate: T) {
+init_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), sample_rate: T) {
 state.ic1eq = 0.
     state.ic2eq = 0.
     state.sample_rate = sample_rate
@@ -59,24 +59,24 @@ state.ic1eq = 0.
     set_cutoff_simper_tan_svf(state, 1000.0) // Safe initial frequency
 }
 
-set_cutoff_simper_tan_svf :: proc(state: ^SimperTanSVF($T), cutoff: T) {
+set_cutoff_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), cutoff: T) {
     max_safe_cutoff := (state.sample_rate / 2.) - 10.0
     state.cutoff = math.clamp(cutoff, 10.0, max_safe_cutoff)
     reinit_simper_tan_svf(state)
 }
 
-set_res_simper_tan_svf :: proc(state: ^SimperTanSVF($T), res: T) {
+set_res_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), res: T) {
     state.res = math.clamp(res, 0.0, 0.99)
     reinit_simper_tan_svf(state)
 }
 
-set_sample_rate_simper_tan_svf :: proc(state: ^SimperTanSVF($T), sample_rate: T) {
+set_sample_rate_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), sample_rate: T) {
     state.sample_rate = sample_rate
     reinit_simper_tan_svf(state)
 }
 
 @(private)
-tick_sample_full_simper_tan_svf :: proc(state: ^SimperTanSVF($T), sample: T) -> (T, T, T) {
+tick_sample_full_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), sample: T) -> (T, T, T) {
     v1 := state.a1 * state.ic1eq + state.a2 * (sample - state.ic2eq)
     v2 := state.ic2eq + state.g * v1
 
@@ -90,7 +90,7 @@ tick_sample_full_simper_tan_svf :: proc(state: ^SimperTanSVF($T), sample: T) -> 
     return low, band, high
 }
 
-tick_sample_simper_tan_svf :: proc(state: ^SimperTanSVF($T), sample: T) -> T {
+tick_sample_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), sample: T) -> T {
     low, band, high := tick_sample_full_simper_tan_svf(state, sample)
     
     switch state.mode {
@@ -104,7 +104,7 @@ tick_sample_simper_tan_svf :: proc(state: ^SimperTanSVF($T), sample: T) -> T {
 }
 
 @(private)
-reinit_simper_tan_svf :: proc(state: ^SimperTanSVF($T)) {
+reinit_simper_tan_svf :: proc(state: ^SimperTanSVFState($T)) {
     state.g = math.tan(math.PI * state.cutoff / state.sample_rate)
     
     q := 1.0 / (2.0 * (1.0 - state.res))
@@ -115,10 +115,10 @@ reinit_simper_tan_svf :: proc(state: ^SimperTanSVF($T)) {
 }
 
 
-SimperSinSVF :: struct($T: typeid) where intrinsics.type_is_float(T) {
+SimperSinSVFState :: struct($T: typeid) where intrinsics.type_is_float(T) {
     res:         T,
     cutoff:      T,
-    sample_rate: T,
+    sample_rate: f32,
     ic1eq:       T,
     ic2eq:       T,
     k:           T,
@@ -128,7 +128,7 @@ SimperSinSVF :: struct($T: typeid) where intrinsics.type_is_float(T) {
     mode:        SVFFilterMode,
 }
 
-init_simper_sin_svf :: proc(state: ^SimperSinSVF($T), sample_rate: T) {
+init_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), sample_rate: T) {
     state.ic1eq = 0.0
     state.ic2eq = 0.0
     state.sample_rate = sample_rate
@@ -138,28 +138,28 @@ init_simper_sin_svf :: proc(state: ^SimperSinSVF($T), sample_rate: T) {
     set_cutoff_simper_sin_svf(state, 500.0)
 }
 
-set_cutoff_simper_sin_svf :: proc(state: ^SimperSinSVF($T), cutoff: T) {
+set_cutoff_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), cutoff: T) {
     max_safe_cutoff := (state.sample_rate / 2.0) - 10.0
     state.cutoff = math.clamp(cutoff, 10.0, max_safe_cutoff)
     reinit_simper_sin_svf(state)
 }
 
-set_sample_rate_simper_sin_svf :: proc(state: ^SimperSinSVF($T), sample_rate: T) {
+set_sample_rate_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), sample_rate: T) {
     state.sample_rate = sample_rate
     reinit_simper_sin_svf(state)
 }
 
-set_res_simper_sin_svf :: proc(state: ^SimperSinSVF($T), res: T) {
+set_res_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), res: T) {
     state.res = math.clamp(res, 0.0, 1.0)
     reinit_simper_sin_svf(state)
 }
 
-set_mode_simper_sin_svf :: proc(state: ^SimperSinSVF($T), mode: SVFFilterMode) {
+set_mode_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), mode: SVFFilterMode) {
     state.mode = mode
 }
 
 @(private)
-reinit_simper_sin_svf :: proc(state: ^SimperSinSVF($T)) {
+reinit_simper_sin_svf :: proc(state: ^SimperSinSVFState($T)) {
     w := math.PI * state.cutoff / state.sample_rate
 
     state.k = 2.0 - 1.45 * state.res
@@ -174,7 +174,7 @@ reinit_simper_sin_svf :: proc(state: ^SimperSinSVF($T)) {
     state.g2 = (2.0 * s1 * s1) * nrm
 }
 
-tick_sample_full_simper_sin_svf :: proc(state: ^SimperSinSVF($T), sample: T) -> (low: T, band: T, high: T) {
+tick_sample_full_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), sample: T) -> (low: T, band: T, high: T) {
     t0 := sample - state.ic2eq
     t1 := state.g0 * t0 + state.g1 * state.ic1eq
     t2 := state.g2 * t0 + state.g0 * state.ic1eq
@@ -190,7 +190,7 @@ tick_sample_full_simper_sin_svf :: proc(state: ^SimperSinSVF($T), sample: T) -> 
     return
 }
 
-tick_sample_simper_sin_svf :: proc(state: ^SimperSinSVF($T), sample: T) -> T {
+tick_sample_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), sample: T) -> T {
     low, band, high := tick_sample_full_simper_sin_svf(state, sample)
     
     switch state.mode {

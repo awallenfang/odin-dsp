@@ -9,7 +9,7 @@ import ma "vendor:miniaudio"
 UserData :: struct {
     phase: f32,
     sr: f32,
-    filter_state: ^filter.SimperSinSVF(f32)
+    filter_state: ^filter.SimperSinSVFState(f32)
 }
 
 dataCallback :: proc "cdecl" (pDevice: ^ma.device, pOutput, pInput: rawptr, frameCount: u32) {
@@ -33,7 +33,7 @@ dataCallback :: proc "cdecl" (pDevice: ^ma.device, pOutput, pInput: rawptr, fram
 }
 
 main :: proc() {
-    filter_state: filter.SimperSinSVF(f32)
+    filter_state: filter.SimperSinSVFState(f32)
     filter_state.mode = .Low
     filter.init(&filter_state, 48000.)
     filter.set_cutoff(&filter_state, 200.)
