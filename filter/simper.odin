@@ -49,7 +49,7 @@ SimperTanSVFState :: struct($T: typeid) where intrinsics.type_is_float(T) {
     mode:        SVFFilterMode,
 }
 
-init_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), sample_rate: T) {
+init_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), sample_rate: f32) {
 state.ic1eq = 0.
     state.ic2eq = 0.
     state.sample_rate = sample_rate
@@ -128,7 +128,7 @@ SimperSinSVFState :: struct($T: typeid) where intrinsics.type_is_float(T) {
     mode:        SVFFilterMode,
 }
 
-init_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), sample_rate: T) {
+init_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), sample_rate: f32) {
     state.ic1eq = 0.0
     state.ic2eq = 0.0
     state.sample_rate = sample_rate
