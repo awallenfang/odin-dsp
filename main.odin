@@ -48,6 +48,7 @@ main :: proc() {
 
     osc_state: generate.SimpleOscillatorState(f32)
     generate.osc_init(&osc_state, 48000., 10)
+    osc_state.type = .Square
 
     generate.osc_note_on(&osc_state, 1, 440.)
     generate.osc_note_on(&osc_state, 2, 140.)

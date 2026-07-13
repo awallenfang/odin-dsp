@@ -5,7 +5,9 @@ import "base:intrinsics"
 
 SimpleOscillatorMode :: enum {
     Sine,
-    Square
+    Square,
+    Sawtooth,
+    Triangle
 }
 
 Voice :: struct($T: typeid) {
@@ -47,7 +49,20 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
         if v.current_frequency <= 0.0 do continue
         active_count += 1
 
-        out += 0.3 * math.sin(v.phase)
+        switch state.type {
+            case .Sine:
+                out += math.sin(v.phase)
+            case .Square:
+                if v.phase < math.PI {
+                    out += 1.0
+                } else {
+                    out -= 1.0
+                }
+            }
+            case .Sawtooth:
+                out += (phase / PI) - 1.0
+            case .Triangle:
+                out += 2.0 * abs(2.0 * (phase / TAU) - 1.0) - 1.0
         
         phase_step := (2.0 * math.PI * v.current_frequency) / state.sample_rate
         v.phase += phase_step
