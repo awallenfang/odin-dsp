@@ -26,7 +26,7 @@ dataCallback :: proc "cdecl" (pDevice: ^ma.device, pOutput, pInput: rawptr, fram
     osc_state := data.osc_state
     freq :f32 = 400.
     phase_step := (2. * math.PI * freq) / data.sr
-    generate.osc_note_on(data.osc_state, 0, data.freq)
+    // generate.osc_note_on(data.osc_state, 0, data.freq)
     for i in 0..<frameCount {
         sample := generate.osc_tick(osc_state, 1./data.sr)
         out_ptr[i] = filter.tick_sample(filter_state, sample)
