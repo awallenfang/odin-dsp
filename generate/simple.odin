@@ -58,11 +58,11 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
                 } else {
                     out -= 1.0
                 }
-            }
             case .Sawtooth:
-                out += (phase / PI) - 1.0
+                out += (v.phase / math.PI) - 1.0
             case .Triangle:
-                out += 2.0 * abs(2.0 * (phase / TAU) - 1.0) - 1.0
+                out += 2.0 * abs(2.0 * (v.phase / math.TAU) - 1.0) - 1.0
+            }
         
         phase_step := (2.0 * math.PI * v.current_frequency) / state.sample_rate
         v.phase += phase_step
