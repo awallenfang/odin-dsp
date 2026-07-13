@@ -71,19 +71,18 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
 
         switch state.type {
             case .Sine:
-                out += math.sin(v.phase)
+                out += math.sin(v.phase) * adsr_amp
             case .Square:
                 if v.phase < math.PI {
-                    out += 1.0
+                    out += adsr_amp
                 } else {
-                    out -= 1.0
+                    out -= adsr_amp
                 }
             case .Sawtooth:
-                out += (v.phase / math.PI) - 1.0
+                out += ((v.phase / math.PI) - 1.0) * adsr_amp
             case .Triangle:
-                out += 2.0 * abs(2.0 * (v.phase / math.TAU) - 1.0) - 1.0
+                out += (2.0 * abs(2.0 * (v.phase / math.TAU) - 1.0) - 1.0) * adsr_amp
             }
-        out *= adsr_amp
         
         phase_step := (2.0 * math.PI * v.current_frequency) / state.sample_rate
         v.phase += phase_step
