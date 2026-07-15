@@ -9,8 +9,7 @@ import ma "vendor:miniaudio"
 
 UserData :: struct {
     sr: f32,
-    // filter_state: ^filter.SimperSinSVFState(f32),
-    filter_state: ^filter.MoogFilterState(f32),
+    filter_state: ^filter.SimperSinSVFState(f32),
     osc_state: ^generate.SimpleOscillatorState(f32),
 }
 
@@ -23,17 +22,16 @@ dataCallback :: proc "cdecl" (pDevice: ^ma.device, pOutput, pInput: rawptr, fram
     osc_state := data.osc_state
     for i in 0..<frameCount {
         sample := generate.osc_tick(osc_state, 1./data.sr)
-        // out_ptr[i] = 0.3 * sample
         out_ptr[i] = 0.3 * filter.tick_sample(filter_state, sample)
     }
 }
 
 main :: proc() {
-    filter_state: filter.MoogFilterState(f32)
-    filter_state.mode = .Lowpass12
+    filter_state: filter.SimperSinSVFState(f32)
+    filter_state.mode = .Low
     filter.init(&filter_state, 48000.)
-    filter.set_cutoff(&filter_state, 3300.)
-    filter.set_res(&filter_state, 0.052)
+    filter.set_cutoff(&filter_state, 1500.)
+    filter.set_res(&filter_state, 0.5)
     
     osc_state: generate.SimpleOscillatorState(f32)
     generate.osc_init(&osc_state, 48000., 10)
