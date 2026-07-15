@@ -10,7 +10,7 @@ import ma "vendor:miniaudio"
 UserData :: struct {
     sr: f32,
     // filter_state: ^filter.SimperSinSVFState(f32),
-    filter_state: ^filter.BiquadFilterStateTDF2(f32),
+    filter_state: ^filter.MoogFilterState(f32),
     osc_state: ^generate.SimpleOscillatorState(f32),
 }
 
@@ -23,7 +23,7 @@ dataCallback :: proc "cdecl" (pDevice: ^ma.device, pOutput, pInput: rawptr, fram
     osc_state := data.osc_state
     for i in 0..<frameCount {
         sample := generate.osc_tick(osc_state, 1./data.sr)
-        out_ptr[i] = filter.tick_sample(filter_state, sample)
+        out_ptr[i] = filter.tick_sample_moog(filter_state, sample)
     }
 }
 
@@ -33,12 +33,17 @@ main :: proc() {
     // filter.init(&filter_state, 48000.)
     // filter.set_cutoff(&filter_state, 200.)
     // filter.set_res(&filter_state, 0.8)
-    filter_state: filter.BiquadFilterStateTDF2(f32)
-    filter_state.mode = .Lowpass
-    filter.init_biquad(&filter_state, 48000.)
-    filter.set_cutoff_biquad(&filter_state, 2000.)
-    filter.set_q_biquad(&filter_state, 0.8)
-    filter.set_mode_biquad(&filter_state, .Highpass)
+    filter_state: filter.MoogFilterState(f32)
+    filter_state.mode = .Low24
+    filter.init_moog(&filter_state, 48000.)
+    filter.set_cutoff_moog(&filter_state, 200.)
+    filter.set_res_moog(&filter_state, 0.8)
+    // filter_state: filter.BiquadFilterStateTDF2(f32)
+    // filter_state.mode = .Lowpass
+    // filter.init_biquad(&filter_state, 48000.)
+    // filter.set_cutoff_biquad(&filter_state, 200.)
+    // filter.set_q_biquad(&filter_state, 0.8)
+    // filter.set_mode_biquad(&filter_state, .Lowpass)
 
     osc_state: generate.SimpleOscillatorState(f32)
     generate.osc_init(&osc_state, 48000., 10)

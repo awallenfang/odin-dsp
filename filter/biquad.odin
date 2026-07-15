@@ -1,7 +1,7 @@
 package filter
 
 import "core:math"
-import "core:intrinsics"
+import "base:intrinsics"
 
 BiquadMode :: enum {
     Lowpass,
