@@ -2,6 +2,7 @@ package generate
 import "core:math"
 import "core:fmt"
 import "base:intrinsics"
+import "../filter"
 
 SimpleOscillatorMode :: enum {
     Sine,
@@ -16,7 +17,8 @@ Voice :: struct($T: typeid) {
     current_frequency:  T,
     target_frequency:   T,
     is_active:          bool,
-    adsr:               ADSRState(T)
+    adsr:               ADSRState(T),
+    adsr_smoothing:     filter.SimperOnePoleState(T)
 }
 
 SimpleOscillatorState :: struct($T: typeid) where intrinsics.type_is_float(T) {
@@ -43,6 +45,14 @@ osc_init :: proc(state: ^SimpleOscillatorState($T), sample_rate: f32, max_voices
     state.release = 0.5
     state.peak_gain = 1.0
     state.sustain_gain = 0.1
+
+    for &voice in state.voices {
+        smoother: filter.SimperOnePoleState(T)
+        filter.init_one_pole(&smoother, state.sample_rate, 0.01)
+        voice.adsr_smoothing = smoother
+    }
+
+    
 }
 
 osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
@@ -52,8 +62,8 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
     for &v in state.voices {
         if !v.is_active && v.current_frequency == 0.0 do continue
 
-        adsr_amp := adsr_tick(&v.adsr, dt)
-
+        adsr_amp_unsmoothed := adsr_tick(&v.adsr, dt)
+        adsr_amp := filter.tick_one_pole(&v.adsr_smoothing, adsr_amp_unsmoothed)
         if v.adsr.phase == .Idle {
             v.is_active = false
             v.current_frequency = 0.0

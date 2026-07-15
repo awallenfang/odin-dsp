@@ -2,6 +2,12 @@ package filter
 
 import "core:math"
 import "base:intrinsics"
+
+/*
+###### Simper SVF filters ######
+Sin and tan implementation of Simper SVF filters
+*/
+
 SVFFilterMode :: enum {
     Low,
     Band,
@@ -201,4 +207,44 @@ tick_sample_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), sample: T) -> 
         case .Peak:  return low - high
     }
     return 0.0
+}
+
+/*
+###### Simper 1-Pole ######
+1-Pole filter for parameter smoothing
+*/
+SimperOnePoleState :: struct($T: typeid) where intrinsics.type_is_float(T) {
+    s: T,
+    g: T,
+    G: T,
+    sample_rate: T,
+    time: T,
+}
+
+init_one_pole :: proc(state: ^SimperOnePoleState($T), sample_rate: T, time: T) {
+    state.s = 0.0
+    state.sample_rate = sample_rate
+    set_smoothing_time_one_pole(state, time)
+}
+
+set_smoothing_time_one_pole :: proc(state: ^SimperOnePoleState($T), time: T) {
+    state.time = math.max(time, 0.0001)
+    
+    cutoff := 1.0 / (2.0 * T(math.PI) * state.time)
+    
+    max_safe_cutoff := (state.sample_rate / 2.0) - 10.0
+    cutoff = math.clamp(cutoff, 0.1, max_safe_cutoff)
+    
+    state.g = math.tan(T(math.PI) * cutoff / state.sample_rate)
+    state.G = state.g / (1.0 + state.g)
+}
+
+tick_one_pole :: proc(state: ^SimperOnePoleState($T), target: T) -> T {
+    v := (target - state.s) * state.G
+    
+    output := v + state.s
+    
+    state.s = output + v 
+    
+    return output
 }
