@@ -1,5 +1,6 @@
 package filter
 
+import "core:time"
 import "core:math"
 import "base:intrinsics"
 
@@ -22,26 +23,6 @@ SimperFilterState :: union($T: typeid) {
     SimperSinSVFState(T),
 }
 
-set_cutoff :: proc{
-    set_cutoff_simper_tan_svf,
-    set_cutoff_simper_sin_svf,
-}
-
-tick_sample :: proc{
-    tick_sample_simper_tan_svf,
-    tick_sample_simper_sin_svf,
-}
-
-set_res :: proc{
-    set_res_simper_tan_svf,
-    set_res_simper_sin_svf
-}
-
-init :: proc{
-    init_simper_sin_svf,
-    init_simper_tan_svf
-}
-
 SimperTanSVFState :: struct($T: typeid) where intrinsics.type_is_float(T) {
     ic1eq:       T,
     ic2eq:       T,
@@ -56,7 +37,7 @@ SimperTanSVFState :: struct($T: typeid) where intrinsics.type_is_float(T) {
 }
 
 init_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), sample_rate: f32) {
-state.ic1eq = 0.
+    state.ic1eq = 0.
     state.ic2eq = 0.
     state.sample_rate = sample_rate
     state.mode = .Low
@@ -224,7 +205,7 @@ SimperOnePoleState :: struct($T: typeid) where intrinsics.type_is_float(T) {
 init_one_pole :: proc(state: ^SimperOnePoleState($T), sample_rate: T, time: T) {
     state.s = 0.0
     state.sample_rate = sample_rate
-    set_smoothing_time_one_pole(state, time)
+    set_smoothing_time_one_pole(state, 0.01)
 }
 
 set_smoothing_time_one_pole :: proc(state: ^SimperOnePoleState($T), time: T) {
@@ -239,7 +220,12 @@ set_smoothing_time_one_pole :: proc(state: ^SimperOnePoleState($T), time: T) {
     state.G = state.g / (1.0 + state.g)
 }
 
-tick_one_pole :: proc(state: ^SimperOnePoleState($T), target: T) -> T {
+set_sample_rate_one_pole :: proc(state: ^SimperOnePoleState($T), sample_rate: T) {
+    state.sample_rate = sample_rate
+    set_smoothing_time_one_pole(state, state.time)
+}
+
+tick_sample_one_pole :: proc(state: ^SimperOnePoleState($T), target: T) -> T {
     v := (target - state.s) * state.G
     
     output := v + state.s

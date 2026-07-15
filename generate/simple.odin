@@ -63,7 +63,7 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
         if !v.is_active && v.current_frequency == 0.0 do continue
 
         adsr_amp_unsmoothed := adsr_tick(&v.adsr, dt)
-        adsr_amp := filter.tick_one_pole(&v.adsr_smoothing, adsr_amp_unsmoothed)
+        adsr_amp := filter.tick_sample_one_pole(&v.adsr_smoothing, adsr_amp_unsmoothed)
         if v.adsr.phase == .Idle && adsr_amp < 0.0001 {
             v.is_active = false
             v.current_frequency = 0.0
