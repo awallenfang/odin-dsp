@@ -101,10 +101,6 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
         }
     }
     
-    if active_count > 1 {
-        out /= T(active_count)
-    }
-    
     return out
 }
 

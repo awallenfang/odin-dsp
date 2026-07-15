@@ -4,6 +4,8 @@ Toolkit for DSP tasks in Odin.
 
 This is a growing set of tools I am building to ultimately use myself and as a learning tool into the actual implementations of filters.
 
+In main.odin you can find example code playing an arpeggio running the simple synth with a Lowpass filter
+
 ## Current features
 
 This toolkit is in no way feature complete and is planned to grow as I am interested in different things.

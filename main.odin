@@ -3,7 +3,7 @@ package odin_dsp
 import "./transform"
 import "./filter"
 import "./generate"
-
+import "core:time"
 import "base:runtime"
 import ma "vendor:miniaudio"
 
@@ -23,34 +23,21 @@ dataCallback :: proc "cdecl" (pDevice: ^ma.device, pOutput, pInput: rawptr, fram
     osc_state := data.osc_state
     for i in 0..<frameCount {
         sample := generate.osc_tick(osc_state, 1./data.sr)
-        out_ptr[i] = filter.tick_sample(filter_state, sample)
+        out_ptr[i] = 0.3 * filter.tick_sample(filter_state, sample)
     }
 }
 
 main :: proc() {
-    // filter_state: filter.SimperSinSVFState(f32)
-    // filter_state.mode = .Low
-    // filter.init(&filter_state, 48000.)
-    // filter.set_cutoff(&filter_state, 200.)
-    // filter.set_res(&filter_state, 0.8)
     filter_state: filter.MoogFilterState(f32)
     filter_state.mode = .Lowpass24
     filter.init(&filter_state, 48000.)
-    filter.set_cutoff(&filter_state, 200.)
-    filter.set_res(&filter_state, 0.8)
-    // filter_state: filter.BiquadFilterStateTDF2(f32)
-    // filter_state.mode = .Lowpass
-    // filter.init_biquad(&filter_state, 48000.)
-    // filter.set_cutoff_biquad(&filter_state, 200.)
-    // filter.set_q_biquad(&filter_state, 0.8)
-    // filter.set_mode_biquad(&filter_state, .Lowpass)
-
+    filter.set_cutoff(&filter_state, 1000.)
+    filter.set_res(&filter_state, 0.3)
+    
     osc_state: generate.SimpleOscillatorState(f32)
     generate.osc_init(&osc_state, 48000., 10)
     osc_state.type = .Square
-
-    generate.osc_note_on(&osc_state, 1, 440.)
-    generate.osc_note_on(&osc_state, 2, 140.)
+    osc_state.glide_speed = 1000
 
     my_data := new(UserData)
     my_data.sr = 48000.0
@@ -72,6 +59,35 @@ main :: proc() {
 
     ma.device_start(&device)
 
-    for {}
+    progression := [4][4]f32{
+        {261.63, 329.63, 392.00, 493.88}, // Cmaj7
+        {220.00, 261.63, 329.63, 392.00}, // Am7  
+        {174.61, 220.00, 261.63, 329.63}, // Fmaj7 
+        {196.00, 246.94, 293.66, 349.23}, // G7 
+    }
+
+    chord_idx := 0
+    note_idx  := 0
+    notes_played_in_current_chord := 0
+
+    for {
+        current_chord := progression[chord_idx]
+        freq := current_chord[note_idx]
+        
+        generate.osc_note_on(&osc_state, note_idx, freq)
+        
+        time.sleep(250 * time.Millisecond)
+        
+        generate.osc_note_off(&osc_state, note_idx) 
+        
+        note_idx = (note_idx + 1) % len(current_chord)
+        notes_played_in_current_chord += 1
+
+        if notes_played_in_current_chord >= 16 {
+            notes_played_in_current_chord = 0
+            note_idx = 0 
+            chord_idx = (chord_idx + 1) % len(progression) 
+        }
+    }
 
 }
