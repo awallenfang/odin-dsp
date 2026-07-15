@@ -1,3 +1,5 @@
+package filter
+
 import "core:math"
 import "core:intrinsics"
 
@@ -7,6 +9,11 @@ BiquadMode :: enum {
     Bandpass, 
     Notch,
     Peak, 
+}
+
+init_biquad :: proc{
+    init_biquad_df1,
+    init_biquad_tdf2
 }
 
 set_cutoff_biquad :: proc{
@@ -86,19 +93,19 @@ set_q_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T), q: T) {
     reinit_biquad_df1(state)
 }
 
-set_mode_biquad :: proc(state: ^BiquadFilterStateDF1($T), mode: BiquadMode) {
+set_mode_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T), mode: BiquadMode) {
     state.mode = mode
     reinit_biquad_df1(state)
 }
 
-set_peak_gain_biquad :: proc(state: ^BiquadFilterStateDF1($T), linear_gain: T) {
+set_peak_gain_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T), linear_gain: T) {
     state.peak_gain = math.max(linear_gain, 0.001) 
     if state.mode == .Peak {
         reinit_biquad_df1(state)
     }
 }
 
-set_sample_rate_biquad :: proc(state: ^BiquadFilterStateDF1($T), sample_rate: T) {
+set_sample_rate_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T), sample_rate: T) {
     state.sample_rate = sample_rate
     reinit_biquad_df1(state)
 }
@@ -205,7 +212,7 @@ BiquadFilterStateTDF2 :: struct($T: typeid) where intrinsics.type_is_float(T) {
     mode:        BiquadMode,
 }
 
-init_biquad :: proc(state: ^BiquadFilterStateTDF2($T), sample_rate: T) {
+init_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), sample_rate: T) {
     state.x1 = 0.
     state.x2 = 0.
     state.y1 = 0.
@@ -226,7 +233,7 @@ set_cutoff_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), cutoff: T) {
     reinit_biquad_tdf2(state)
 }
 
-set_q_biquad_tdf2_ :: proc(state: ^BiquadFilterStateTDF2($T), q: T) {
+set_q_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), q: T) {
     state.q = math.clamp(q, 0.1, 100.0)
     reinit_biquad_tdf2(state)
 }
