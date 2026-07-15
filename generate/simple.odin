@@ -41,7 +41,7 @@ osc_init :: proc(state: ^SimpleOscillatorState($T), sample_rate: f32, max_voices
     
     state.voices = make([]Voice(T), max_voices)
     state.attack = 0.001
-    state.decay = 1
+    state.decay = 0.5
     state.release = 0.8
     state.peak_gain = 1.0
     state.sustain_gain = 0.0
@@ -153,6 +153,26 @@ osc_note_off :: proc(state: ^SimpleOscillatorState($T), note_id: int) {
                 adsr_note_off(&v.adsr)
             }
     }
+}
+
+osc_set_attack :: proc(state: ^SimpleOscillatorState($T), attack: T) {
+    state.attack = attack
+}
+
+osc_set_decay :: proc(state: ^SimpleOscillatorState($T), decay: T) {
+    state.decay = decay
+}
+
+osc_set_release :: proc(state: ^SimpleOscillatorState($T), release: T) {
+    state.release = release
+}
+
+osc_set_sustain_gain :: proc(state: ^SimpleOscillatorState($T), gain: T) {
+    state.sustain_gain = gain
+}
+
+osc_set_peak_gain :: proc(state: ^SimpleOscillatorState($T), gain: T) {
+    state.peak_gain = gain
 }
 
 @(private)

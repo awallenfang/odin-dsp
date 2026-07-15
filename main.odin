@@ -23,21 +23,22 @@ dataCallback :: proc "cdecl" (pDevice: ^ma.device, pOutput, pInput: rawptr, fram
     osc_state := data.osc_state
     for i in 0..<frameCount {
         sample := generate.osc_tick(osc_state, 1./data.sr)
+        // out_ptr[i] = 0.3 * sample
         out_ptr[i] = 0.3 * filter.tick_sample(filter_state, sample)
     }
 }
 
 main :: proc() {
     filter_state: filter.MoogFilterState(f32)
-    filter_state.mode = .Lowpass24
+    filter_state.mode = .Lowpass12
     filter.init(&filter_state, 48000.)
-    filter.set_cutoff(&filter_state, 1300.)
-    filter.set_res(&filter_state, 0.3)
+    filter.set_cutoff(&filter_state, 3300.)
+    filter.set_res(&filter_state, 0.052)
     
     osc_state: generate.SimpleOscillatorState(f32)
     generate.osc_init(&osc_state, 48000., 10)
     osc_state.type = .Square
-    osc_state.glide_speed = 1000
+    osc_state.glide_speed = 10000
 
     my_data := new(UserData)
     my_data.sr = 48000.0
@@ -81,7 +82,7 @@ main :: proc() {
             generate.osc_note_on(&osc_state, 6, current_chord[note_idx+2] / 2.)
         }
         
-        time.sleep(250 * time.Millisecond)
+        time.sleep(320 * time.Millisecond)
         
         generate.osc_note_off(&osc_state, note_idx) 
         
