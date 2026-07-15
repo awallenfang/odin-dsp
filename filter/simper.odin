@@ -248,3 +248,7 @@ tick_one_pole :: proc(state: ^SimperOnePoleState($T), target: T) -> T {
     
     return output
 }
+
+snap_to_value_one_pole :: proc(state: ^SimperOnePoleState($T), value: T) {
+    state.s = value
+}

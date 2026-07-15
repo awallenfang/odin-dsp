@@ -64,7 +64,7 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
 
         adsr_amp_unsmoothed := adsr_tick(&v.adsr, dt)
         adsr_amp := filter.tick_one_pole(&v.adsr_smoothing, adsr_amp_unsmoothed)
-        if v.adsr.phase == .Idle {
+        if v.adsr.phase == .Idle && adsr_amp < 0.0001 {
             v.is_active = false
             v.current_frequency = 0.0
             continue
@@ -133,6 +133,8 @@ osc_note_on :: proc(state: ^SimpleOscillatorState($T), note_id: int, freq: T) {
             }
             v.phase = 0.0
             v.is_active = true
+
+            filter.snap_to_value_one_pole(&v.adsr_smoothing, 0.0)
 
             adsr_setup(&v.adsr, state.attack, state.decay, state.release, state.peak_gain, state.sustain_gain)
             adsr_note_on(&v.adsr)
