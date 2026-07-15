@@ -31,7 +31,7 @@ main :: proc() {
     filter_state: filter.MoogFilterState(f32)
     filter_state.mode = .Lowpass24
     filter.init(&filter_state, 48000.)
-    filter.set_cutoff(&filter_state, 1000.)
+    filter.set_cutoff(&filter_state, 1300.)
     filter.set_res(&filter_state, 0.3)
     
     osc_state: generate.SimpleOscillatorState(f32)
@@ -73,8 +73,13 @@ main :: proc() {
     for {
         current_chord := progression[chord_idx]
         freq := current_chord[note_idx]
-        
         generate.osc_note_on(&osc_state, note_idx, freq)
+
+        if notes_played_in_current_chord == 0 {
+            generate.osc_note_on(&osc_state, 5, freq / 2.)
+        } else if notes_played_in_current_chord == 8 {
+            generate.osc_note_on(&osc_state, 6, current_chord[note_idx+2] / 2.)
+        }
         
         time.sleep(250 * time.Millisecond)
         

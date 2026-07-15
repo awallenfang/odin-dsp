@@ -29,6 +29,7 @@ My ultimate goal is to have a toolkit of DSP together to build a feature complet
 - [ ] Comb Filter
 - [ ] Formant Filter
 - [ ] Buffer processing
+- [ ] LFO
 
 ## References
 

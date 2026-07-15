@@ -42,9 +42,9 @@ osc_init :: proc(state: ^SimpleOscillatorState($T), sample_rate: f32, max_voices
     state.voices = make([]Voice(T), max_voices)
     state.attack = 0.001
     state.decay = 1
-    state.release = 0.5
+    state.release = 0.8
     state.peak_gain = 1.0
-    state.sustain_gain = 0.1
+    state.sustain_gain = 0.0
 
     for &voice in state.voices {
         smoother: filter.SimperOnePoleState(T)
@@ -78,18 +78,25 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
 
         if v.current_frequency <= 0.0 do continue
         active_count += 1
-
+        t := v.phase / math.TAU
+        dt_norm := v.current_frequency / T(state.sample_rate)
         switch state.type {
             case .Sine:
                 out += math.sin(v.phase) * adsr_amp
             case .Square:
-                if v.phase < math.PI {
-                    out += adsr_amp
-                } else {
-                    out -= adsr_amp
-                }
+                naive := t < 0.5 ? T(1.0) : T(-1.0)
+                
+                correction_0 := polyblep(t, dt_norm)
+                
+                t_half := t + 0.5
+                if t_half >= 1.0 do t_half -= 1.0
+                correction_half := polyblep(t_half, dt_norm)
+                
+                out += (naive + correction_0 - correction_half) * adsr_amp
             case .Sawtooth:
-                out += ((v.phase / math.PI) - 1.0) * adsr_amp
+                naive := (2.0 * t) - 1.0
+                
+                out += (naive - polyblep(t, dt_norm)) * adsr_amp
             case .Triangle:
                 out += (2.0 * abs(2.0 * (v.phase / math.TAU) - 1.0) - 1.0) * adsr_amp
             }
@@ -146,4 +153,16 @@ osc_note_off :: proc(state: ^SimpleOscillatorState($T), note_id: int) {
                 adsr_note_off(&v.adsr)
             }
     }
+}
+
+@(private)
+polyblep :: proc(t, dt: $T) -> T where intrinsics.type_is_float(T) {
+    if t < dt {
+        p := t / dt
+        return p - 0.5 * p * p - 0.5
+    } else if t > 1.0 - dt {
+        p := (t - 1.0) / dt
+        return 0.5 * p * p + p + 0.5
+    }
+    return 0.0
 }
