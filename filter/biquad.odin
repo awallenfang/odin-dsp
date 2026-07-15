@@ -9,6 +9,9 @@ BiquadMode :: enum {
     Bandpass, 
     Notch,
     Peak, 
+    Allpass,
+    LowShelf,
+    HighShelf,
 }
 
 init_biquad :: proc{
@@ -100,8 +103,9 @@ set_mode_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T), mode: BiquadMode) 
 
 set_peak_gain_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T), linear_gain: T) {
     state.peak_gain = math.max(linear_gain, 0.001) 
-    if state.mode == .Peak {
-        reinit_biquad_df1(state)
+    #partial switch state.mode {
+        case .Peak, .LowShelf, .HighShelf:
+            reinit_biquad_df1(state)
     }
 }
 
@@ -179,6 +183,35 @@ reinit_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T)) {
             a0 =  1.0 + alpha / A
             a1 = -2.0 * cos_w0
             a2 =  1.0 - alpha / A
+        case .Allpass:
+            b0 =  1.0 - alpha
+            b1 = -2.0 * cos_w0
+            b2 =  1.0 + alpha
+            a0 =  1.0 + alpha
+            a1 = -2.0 * cos_w0
+            a2 =  1.0 - alpha
+
+        case .LowShelf:
+            A := math.sqrt(state.peak_gain)
+            sqrt_A := math.sqrt(A)
+            
+            b0 =      A * ( (A + 1.0) - (A - 1.0) * cos_w0 + 2.0 * sqrt_A * alpha )
+            b1 =  2.0 * A * ( (A - 1.0) - (A + 1.0) * cos_w0 )
+            b2 =      A * ( (A + 1.0) - (A - 1.0) * cos_w0 - 2.0 * sqrt_A * alpha )
+            a0 =            (A + 1.0) + (A - 1.0) * cos_w0 + 2.0 * sqrt_A * alpha
+            a1 = -2.0 * ( (A - 1.0) + (A + 1.0) * cos_w0 )
+            a2 =            (A + 1.0) + (A - 1.0) * cos_w0 - 2.0 * sqrt_A * alpha
+
+        case .HighShelf:
+            A := math.sqrt(state.peak_gain)
+            sqrt_A := math.sqrt(A)
+
+            b0 =      A * ( (A + 1.0) + (A - 1.0) * cos_w0 + 2.0 * sqrt_A * alpha )
+            b1 = -2.0 * A * ( (A - 1.0) + (A + 1.0) * cos_w0 )
+            b2 =      A * ( (A + 1.0) + (A - 1.0) * cos_w0 - 2.0 * sqrt_A * alpha )
+            a0 =            (A + 1.0) - (A - 1.0) * cos_w0 + 2.0 * sqrt_A * alpha
+            a1 =  2.0 * ( (A - 1.0) - (A + 1.0) * cos_w0 )
+            a2 =            (A + 1.0) - (A - 1.0) * cos_w0 - 2.0 * sqrt_A * alpha
     }
 
     // Normalization
@@ -193,10 +226,8 @@ reinit_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T)) {
 
 
 BiquadFilterStateTDF2 :: struct($T: typeid) where intrinsics.type_is_float(T) {
-    x1:          T,
-    x2:          T,
-    y1:          T,
-    y2:          T,
+    s1:          T,
+    s2:          T,
 
     cutoff:      T,
     sample_rate: T,
@@ -213,10 +244,8 @@ BiquadFilterStateTDF2 :: struct($T: typeid) where intrinsics.type_is_float(T) {
 }
 
 init_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), sample_rate: T) {
-    state.x1 = 0.
-    state.x2 = 0.
-    state.y1 = 0.
-    state.y2 = 0.
+    state.s1 = 0.
+    state.s2 = 0.
     
     state.sample_rate = sample_rate
     state.peak_gain = 1.0 
@@ -245,8 +274,9 @@ set_mode_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), mode: BiquadMode
 
 set_peak_gain_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), linear_gain: T) {
     state.peak_gain = math.max(linear_gain, 0.001) 
-    if state.mode == .Peak {
-        reinit_biquad_tdf2(state)
+    #partial switch state.mode {
+        case .Peak, .LowShelf, .HighShelf:
+            reinit_biquad_tdf2(state)
     }
 }
 
@@ -256,17 +286,11 @@ set_sample_rate_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), sample_ra
 }
 
 tick_sample_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), sample: T) -> T {
-    output := (state.b0 * sample) + 
-              (state.b1 * state.x1) + 
-              (state.b2 * state.x2) - 
-              (state.a1 * state.y1) - 
-              (state.a2 * state.y2)
+    output := (state.b0 * sample) + state.s1
 
-    state.x2 = state.x1
-    state.x1 = sample
-    
-    state.y2 = state.y1
-    state.y1 = output
+    state.s1 = (state.b1 * sample) - (state.a1 * output) + state.s2
+
+    state.s2 = (state.b2 * sample) - (state.a2 * output)
 
     return output
 }
@@ -324,6 +348,35 @@ reinit_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T)) {
             a0 =  1.0 + alpha / A
             a1 = -2.0 * cos_w0
             a2 =  1.0 - alpha / A
+case .Allpass:
+            b0 =  1.0 - alpha
+            b1 = -2.0 * cos_w0
+            b2 =  1.0 + alpha
+            a0 =  1.0 + alpha
+            a1 = -2.0 * cos_w0
+            a2 =  1.0 - alpha
+
+        case .LowShelf:
+            A := math.sqrt(state.peak_gain)
+            sqrt_A := math.sqrt(A)
+            
+            b0 =      A * ( (A + 1.0) - (A - 1.0) * cos_w0 + 2.0 * sqrt_A * alpha )
+            b1 =  2.0 * A * ( (A - 1.0) - (A + 1.0) * cos_w0 )
+            b2 =      A * ( (A + 1.0) - (A - 1.0) * cos_w0 - 2.0 * sqrt_A * alpha )
+            a0 =            (A + 1.0) + (A - 1.0) * cos_w0 + 2.0 * sqrt_A * alpha
+            a1 = -2.0 * ( (A - 1.0) + (A + 1.0) * cos_w0 )
+            a2 =            (A + 1.0) + (A - 1.0) * cos_w0 - 2.0 * sqrt_A * alpha
+
+        case .HighShelf:
+            A := math.sqrt(state.peak_gain)
+            sqrt_A := math.sqrt(A)
+
+            b0 =      A * ( (A + 1.0) + (A - 1.0) * cos_w0 + 2.0 * sqrt_A * alpha )
+            b1 = -2.0 * A * ( (A - 1.0) + (A + 1.0) * cos_w0 )
+            b2 =      A * ( (A + 1.0) + (A - 1.0) * cos_w0 - 2.0 * sqrt_A * alpha )
+            a0 =            (A + 1.0) - (A - 1.0) * cos_w0 + 2.0 * sqrt_A * alpha
+            a1 =  2.0 * ( (A - 1.0) - (A + 1.0) * cos_w0 )
+            a2 =            (A + 1.0) - (A - 1.0) * cos_w0 - 2.0 * sqrt_A * alpha
     }
 
     // Normalization
