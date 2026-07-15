@@ -4,10 +4,16 @@ import "core:math"
 import "base:intrinsics"
 
 MoogMode :: enum {
-    Low6,
-    Low12,
-    Low18, 
-    Low24,
+    Lowpass6,
+    Lowpass12,
+    Lowpass18, 
+    Lowpass24,
+    Highpass6,
+    Highpass12,
+    Highpass18,
+    Highpass24,
+    Bandpass,
+    Notch
 }
 
 MoogFilterState :: struct($T: typeid) where intrinsics.type_is_float(T) {
@@ -34,7 +40,7 @@ init_moog :: proc(state: ^MoogFilterState($T), sample_rate: T) {
     state.s4 = 0.
     
     state.sample_rate = sample_rate
-    state.mode = .Low24
+    state.mode = .Lowpass24
 
     set_res_moog(state, 0.2)
     set_cutoff_moog(state, 1000.0) 
@@ -57,7 +63,7 @@ set_sample_rate_moog :: proc(state: ^MoogFilterState($T), sample_rate: T) {
 }
 
 @(private)
-tick_sample_full_moog :: proc(state: ^MoogFilterState($T), sample: T) -> (T, T, T, T) {
+tick_sample_full_moog :: proc(state: ^MoogFilterState($T), sample: T) -> (T, T, T, T, T) {
     S1 := state.s1 / (1. + state.g)
     S2 := state.s2 / (1. + state.g)
     S3 := state.s3 / (1. + state.g)
@@ -85,7 +91,7 @@ tick_sample_full_moog :: proc(state: ^MoogFilterState($T), sample: T) -> (T, T, 
     y4 := v4 + state.s4
     state.s4 = y4 + v4
 
-    return y1, y2, y3, y4
+    return u, y1, y2, y3, y4
 }
 
 @(private)
@@ -98,13 +104,19 @@ reinit_moog :: proc(state: ^MoogFilterState($T)) {
 }
 
 tick_sample_moog :: proc(state: ^MoogFilterState($T), sample: T) -> T {
-    y1, y2, y3, y4 := tick_sample_full_moog(state, sample)
+    u, y1, y2, y3, y4 := tick_sample_full_moog(state, sample)
     
     switch state.mode {
-        case .Low6: return y1
-        case .Low12: return y2
-        case .Low18: return y3
-        case .Low24: return y4
+        case .Lowpass6: return y1
+        case .Lowpass12: return y2
+        case .Lowpass18: return y3
+        case .Lowpass24: return y4
+        case .Highpass6:    return u - y1
+        case .Highpass12:   return u - 2.0 * y1 + y2
+        case .Highpass18:   return u - 3.0 * y1 + 3.0 * y2 - y3
+        case .Highpass24:   return u - 4.0 * y1 + 6.0 * y2 - 4.0 * y3 + y4
+        case .Bandpass: return 4.0 * (y2 - 2.0 * y3 + y4)
+        case .Notch:    return  - 4.0 * y2 + 8.0 * y3 - 4.0 * y4
     }
     return 0.
 }
