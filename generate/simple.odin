@@ -33,6 +33,8 @@ SimpleOscillatorState :: struct($T: typeid) where intrinsics.type_is_float(T) {
     release:      T,
     peak_gain:    T,
     sustain_gain: T,
+
+    pitch_mod:    T,
 }
 
 osc_init :: proc(state: ^SimpleOscillatorState($T), sample_rate: f32, max_voices : int = 10) {
@@ -79,8 +81,12 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
 
         if v.current_frequency <= 0.0 do continue
         active_count += 1
+
+        play_freq := v.current_frequency * (1.0 + state.pitch_mod)
+        if play_freq <= 0.0 do continue
+
         t := v.phase / math.TAU
-        dt_norm := v.current_frequency / T(state.sample_rate)
+        dt_norm := play_freq / T(state.sample_rate)
         switch state.type {
             case .Sine:
                 out += math.sin(v.phase) * adsr_amp
@@ -102,7 +108,7 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
                 out += (2.0 * abs(2.0 * (v.phase / math.TAU) - 1.0) - 1.0) * adsr_amp
             }
         
-        phase_step := (2.0 * math.PI * v.current_frequency) / state.sample_rate
+        phase_step := (2.0 * math.PI * play_freq) / state.sample_rate
         v.phase += phase_step
         if v.phase > 2.0 * math.PI {
             v.phase -= 2.0 * math.PI

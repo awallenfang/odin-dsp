@@ -1,6 +1,5 @@
 package transform
 import "core:math"
-import "core:fmt"
 
 @(private)
 pad_signal_inplace :: proc(signal: ^[dynamic]complex32) {

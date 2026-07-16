@@ -20,43 +20,64 @@ ModRoute :: struct($T: typeid) {
 ModulationMatrix :: struct($T: typeid) {
     sources: [dynamic]ModSource(T),
     targets: [dynamic]ModTarget(T),
-    routes: [dynamic]ModRoute(T),
-    cache: [dynamic]T
+    routes:  [dynamic]ModRoute(T),
+    cache:   [dynamic]T
 }
 
-matrix_add_adsr :: proc(m: ^ModulationMatrix($T), adsr: ^ADSRState(T)) {
+matrix_add_adsr :: proc(m: ^ModulationMatrix($T), adsr: ^ADSRState(T)) -> int {
     idx := len(m.sources)
     append(&m.sources, ModSource(T)(adsr))
     append(&m.cache, T(0))
     return idx
 }
-matrix_add_lfo :: proc(m: ^ModulationMatrix($T), lfo: ^LFOState(T)) {
+
+matrix_add_lfo :: proc(m: ^ModulationMatrix($T), lfo: ^LFOState(T)) -> int {
     idx := len(m.sources)
     append(&m.sources, ModSource(T)(lfo))
     append(&m.cache, T(0))
     return idx
-
 }
 
-matrix_add_target :: proc(m: ^ModulationMatrix($T), target: ModTarget(T)) {
+matrix_add_target :: proc(m: ^ModulationMatrix($T), target: ModTarget(T)) -> int {
     idx := len(m.targets)
     append(&m.targets, target)
     return idx
 }
 
+matrix_add_route :: proc(m: ^ModulationMatrix($T), route: ModRoute(T)) -> int {
+    idx := len(m.routes)
+    append(&m.routes, route)
+    return idx
+}
+
 matrix_tick :: proc(m: ^ModulationMatrix($T)) {
     for &route in m.routes {
-        state
         val: T
         switch source in m.sources[route.source_idx] {
             case ^LFOState(T):
-                state := (^LFOState(T))(source)
-                val = modulate.tick_sample(state)
+                val = tick_sample(source)
             case ^ADSRState(T):
-                state := (^ADSRPhase(T))(source)
-                val = modulate.tick_sample(state)
+                val = tick_sample(source)
         }
+
         target := m.targets[route.target_idx]
-        target.apply(target.rawptr, val)
+
+        if route.bipolar {
+            val *= route.depth
+        } else {
+            if val < 0 {
+                val = 0
+            }
+            val *= route.depth
+        }
+
+        target.apply(target.data, val)
     }
+}
+
+matrix_cleanup :: proc(m: ^ModulationMatrix($T)) {
+    delete(m.sources)
+    delete(m.targets)
+    delete(m.routes)
+    delete(m.cache)
 }
