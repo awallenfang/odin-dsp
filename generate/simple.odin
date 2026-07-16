@@ -3,6 +3,7 @@ import "core:math"
 import "core:fmt"
 import "base:intrinsics"
 import "../filter"
+import "../modulate"
 
 SimpleOscillatorMode :: enum {
     Sine,
@@ -17,7 +18,7 @@ Voice :: struct($T: typeid) {
     current_frequency:  T,
     target_frequency:   T,
     is_active:          bool,
-    adsr:               ADSRState(T),
+    adsr:               modulate.ADSRState(T),
     adsr_smoothing:     filter.SimperOnePoleState(T)
 }
 
@@ -62,7 +63,7 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
     for &v in state.voices {
         if !v.is_active && v.current_frequency == 0.0 do continue
 
-        adsr_amp_unsmoothed := adsr_tick(&v.adsr, dt)
+        adsr_amp_unsmoothed := modulate.tick_sample(&v.adsr)
         adsr_amp := filter.tick_sample_one_pole(&v.adsr_smoothing, adsr_amp_unsmoothed)
         if v.adsr.phase == .Idle && adsr_amp < 0.0001 {
             v.is_active = false
@@ -120,8 +121,8 @@ osc_note_on :: proc(state: ^SimpleOscillatorState($T), note_id: int, freq: T) {
     for &v in state.voices {
         if v.is_active && v.note_id == note_id {
             v.target_frequency = freq
-            adsr_setup(&v.adsr, state.attack, state.decay, state.release, state.peak_gain, state.sustain_gain)
-            adsr_note_on(&v.adsr)
+            modulate.adsr_setup(&v.adsr, state.attack, state.decay, state.release, state.peak_gain, state.sustain_gain, state.sample_rate)
+            modulate.adsr_note_on(&v.adsr)
             return
         }
     }
@@ -139,8 +140,8 @@ osc_note_on :: proc(state: ^SimpleOscillatorState($T), note_id: int, freq: T) {
 
             filter.snap_to_value_one_pole(&v.adsr_smoothing, 0.0)
 
-            adsr_setup(&v.adsr, state.attack, state.decay, state.release, state.peak_gain, state.sustain_gain)
-            adsr_note_on(&v.adsr)
+            modulate.adsr_setup(&v.adsr, state.attack, state.decay, state.release, state.peak_gain, state.sustain_gain, state.sample_rate)
+            modulate.adsr_note_on(&v.adsr)
             return
         }
     }
@@ -150,7 +151,7 @@ osc_note_on :: proc(state: ^SimpleOscillatorState($T), note_id: int, freq: T) {
 osc_note_off :: proc(state: ^SimpleOscillatorState($T), note_id: int) {
     for &v in state.voices {
         if v.is_active && v.note_id == note_id {
-                adsr_note_off(&v.adsr)
+                modulate.adsr_note_off(&v.adsr)
             }
     }
 }

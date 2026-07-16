@@ -1,4 +1,4 @@
-package generate
+package modulate
 
 import "core:fmt"
 import "base:intrinsics"
@@ -28,6 +28,8 @@ ADSRState :: struct($T: typeid) where intrinsics.type_is_float(T) {
     
     active_release_rate: T,
     type:         ADSRType,
+
+    sample_rate: T
 }
 
 adsr_setup :: proc(
@@ -37,6 +39,7 @@ adsr_setup :: proc(
     release: T, 
     peak_gain: T,
     sustain_gain: T,
+    sample_rate: T
 ) {
     state.attack_t     = attack
     state.decay_t      = decay
@@ -45,6 +48,7 @@ adsr_setup :: proc(
     state.sustain_gain = sustain_gain
     state.phase        = .Idle
     state.current_val  = 0.0
+    state.sample_rate  = sample_rate
 }
 
 adsr_note_on :: proc(state: ^ADSRState($T)) {
@@ -59,7 +63,8 @@ adsr_note_off :: proc(state: ^ADSRState($T)) {
     }
 }
 
-adsr_tick :: proc(state: ^ADSRState($T), dt: T) -> T {
+tick_sample_adsr :: proc(state: ^ADSRState($T)) -> T {
+    dt := 1. / state.sample_rate
     switch state.phase {
     case .Idle:
         state.current_val = 0.0
