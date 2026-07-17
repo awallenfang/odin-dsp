@@ -59,9 +59,8 @@ main :: proc() {
         filter.set_res(&filter_state, 0.5)
 
         osc_state: generate.SimpleOscillatorState(f32)
-        generate.osc_init(&osc_state, 48000., 10)
+        generate.osc_init(&osc_state, 48000., max_voices = 10, glide = 0.)
         osc_state.type = .Square
-        osc_state.glide_speed = 10000
 
         my_data := new(UserData)
         my_data.sr = 48000.0
@@ -129,7 +128,6 @@ main :: proc() {
         osc_state: generate.SimpleOscillatorState(f32)
         generate.osc_init(&osc_state, 48000., 10)
         osc_state.type = .Square
-        osc_state.glide_speed = 10000
 
         mod_matrix: modulate.ModulationMatrix(f32)
         lfo_state: modulate.LFOState(f32)
@@ -138,7 +136,7 @@ main :: proc() {
         modulate.lfo_set_amplitude(&lfo_state, 5.0)
 
         _ = modulate.matrix_add_lfo(&mod_matrix, &lfo_state)
-        _ = modulate.matrix_add_target(&mod_matrix, &osc_state.retune)
+        _ = modulate.matrix_add_target(&mod_matrix, &osc_state.detune)
         modulate.matrix_add_route(&mod_matrix, modulate.ModRoute(f32){
             source_idx = 0,
             target_idx = 0,

@@ -26,30 +26,42 @@ SimpleOscillatorState :: struct($T: typeid) where intrinsics.type_is_float(T) {
     type: SimpleOscillatorMode,
     sample_rate: f32,
     voices:      []Voice(T),
-    glide_speed: T,
+    glide_speed: modulate.ModParam(T),
+    glide:        modulate.ModParam(T),
 
-    attack:       T,
-    decay:        T,
-    release:      T,
-    peak_gain:    T,
-    sustain_gain: T,
+    attack:       modulate.ModParam(T),
+    decay:        modulate.ModParam(T),
+    release:      modulate.ModParam(T),
+    peak_gain:    modulate.ModParam(T),
+    sustain_gain: modulate.ModParam(T),
 
-    retune:    modulate.ModParam(T),
+    detune:    modulate.ModParam(T),
 }
 
-osc_init :: proc(state: ^SimpleOscillatorState($T), sample_rate: f32, max_voices : int = 10) {
+osc_init :: proc(
+    state: ^SimpleOscillatorState($T), 
+    sample_rate: f32,
+    max_voices : int = 10, 
+    glide_speed := 20., 
+    glide := 0.,
+    attack := 0.001,
+    decay := 0.5,
+    release := 0.8,
+    peak_gain:= 1.0,
+    sustain_gain:= 0.0) {
     state.sample_rate = sample_rate
     state.type = .Square
-    state.glide_speed = 20.0 
+    modulate.param_init(&state.glide_speed, T(glide_speed), 0., 100., 0.0)
+    modulate.param_init(&state.glide, T(glide), 0., 1., 0.0)
     
     state.voices = make([]Voice(T), max_voices)
-    state.attack = 0.001
-    state.decay = 0.5
-    state.release = 0.8
-    state.peak_gain = 1.0
-    state.sustain_gain = 0.0
+    modulate.param_init(&state.attack,T(attack), 0., 1000., 0.001)
+    modulate.param_init(&state.decay, T(decay), 0., 1000., 1.0)
+    modulate.param_init(&state.release, T(release), 0., 1000., 1.0)
+    modulate.param_init(&state.peak_gain, T(peak_gain), 0., 1000., 0.5)
+    modulate.param_init(&state.sustain_gain, T(sustain_gain), 0., 1000., 0.0)
 
-    modulate.param_init(&state.retune, 0., -10., 10., 0.)
+    modulate.param_init(&state.detune, 0., -10., 10., 0.)
     for &voice in state.voices {
         smoother: filter.SimperOnePoleState(T)
         filter.init_one_pole(&smoother, state.sample_rate, 0.01)
@@ -75,7 +87,11 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
         }
         
         if v.is_active {
-            v.current_frequency += (v.target_frequency - v.current_frequency) * state.glide_speed * dt
+            if T(modulate.param_get(&state.glide)) < 0.5 {
+                v.current_frequency = v.target_frequency
+            } else {
+                v.current_frequency += (v.target_frequency - v.current_frequency) * T(modulate.param_get(&state.glide_speed)) * dt
+            }
         } else {
             v.current_frequency = 0.0 
         }
@@ -83,7 +99,7 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
         if v.current_frequency <= 0.0 do continue
         active_count += 1
 
-        play_freq := v.current_frequency + T(modulate.param_get(&state.retune))
+        play_freq := v.current_frequency + T(modulate.param_get(&state.detune))
         if play_freq <= 0.0 do continue
 
         t := v.phase / math.TAU
@@ -128,7 +144,14 @@ osc_note_on :: proc(state: ^SimpleOscillatorState($T), note_id: int, freq: T) {
     for &v in state.voices {
         if v.is_active && v.note_id == note_id {
             v.target_frequency = freq
-            modulate.adsr_setup(&v.adsr, state.attack, state.decay, state.release, state.peak_gain, state.sustain_gain, state.sample_rate)
+            modulate.adsr_setup(
+                &v.adsr, 
+                T(modulate.param_get(&state.attack)), 
+                T(modulate.param_get(&state.decay)), 
+                T(modulate.param_get(&state.release)), 
+                T(modulate.param_get(&state.peak_gain)), 
+                T(modulate.param_get(&state.sustain_gain)), 
+                state.sample_rate)
             modulate.adsr_note_on(&v.adsr)
             return
         }
@@ -147,7 +170,14 @@ osc_note_on :: proc(state: ^SimpleOscillatorState($T), note_id: int, freq: T) {
 
             filter.snap_to_value_one_pole(&v.adsr_smoothing, 0.0)
 
-            modulate.adsr_setup(&v.adsr, state.attack, state.decay, state.release, state.peak_gain, state.sustain_gain, state.sample_rate)
+            modulate.adsr_setup(
+                &v.adsr, 
+                T(modulate.param_get(&state.attack)), 
+                T(modulate.param_get(&state.decay)), 
+                T(modulate.param_get(&state.release)), 
+                T(modulate.param_get(&state.peak_gain)), 
+                T(modulate.param_get(&state.sustain_gain)), 
+                state.sample_rate)
             modulate.adsr_note_on(&v.adsr)
             return
         }
