@@ -19,23 +19,27 @@ Voice :: struct($T: typeid) {
     target_frequency:   T,
     is_active:          bool,
     adsr:               modulate.ADSRState(T),
-    adsr_smoothing:     filter.SimperOnePoleState(T)
+    adsr_smoothing:     filter.SimperOnePoleState(T),
+    filter:             filter.SimperSinSVFState(T)
 }
 
 SimpleOscillatorState :: struct($T: typeid) where intrinsics.type_is_float(T) {
     type: SimpleOscillatorMode,
-    sample_rate: f32,
-    voices:      []Voice(T),
-    glide_speed: modulate.ModParam(T),
-    glide:        modulate.ModParam(T),
+    sample_rate:    f32,
+    voices:         []Voice(T),
+    glide_speed:    modulate.ModParam(T),
+    glide:          modulate.ModParam(T),
 
-    attack:       modulate.ModParam(T),
-    decay:        modulate.ModParam(T),
-    release:      modulate.ModParam(T),
-    peak_gain:    modulate.ModParam(T),
-    sustain_gain: modulate.ModParam(T),
+    attack:         modulate.ModParam(T),
+    decay:          modulate.ModParam(T),
+    release:        modulate.ModParam(T),
+    peak_gain:      modulate.ModParam(T),
+    sustain_gain:   modulate.ModParam(T),
 
-    detune:    modulate.ModParam(T),
+    detune:         modulate.ModParam(T),
+
+    cutoff:         modulate.ModParam(T),
+    res:            modulate.ModParam(T),
 }
 
 osc_init :: proc(
@@ -62,10 +66,13 @@ osc_init :: proc(
     modulate.param_init(&state.sustain_gain, T(sustain_gain), 0., 1000., 0.0)
 
     modulate.param_init(&state.detune, 0., -10., 10., 0.)
+    modulate.param_init(&state.cutoff, T(1500.), 10., 24000., 0.1)
+    modulate.param_init(&state.res, T(0.2), 0., 1., 0.1)
     for &voice in state.voices {
         smoother: filter.SimperOnePoleState(T)
         filter.init_one_pole(&smoother, state.sample_rate, 0.01)
         voice.adsr_smoothing = smoother
+        filter.init_simper_sin_svf(&voice.filter, state.sample_rate)
     }
 
     
@@ -104,9 +111,11 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
 
         t := v.phase / math.TAU
         dt_norm := play_freq / T(state.sample_rate)
+
+        voice_sample: T
         switch state.type {
             case .Sine:
-                out += math.sin(v.phase) * adsr_amp
+                voice_sample = math.sin(v.phase) * adsr_amp
             case .Square:
                 naive := t < 0.5 ? T(1.0) : T(-1.0)
                 
@@ -116,14 +125,18 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
                 if t_half >= 1.0 do t_half -= 1.0
                 correction_half := polyblep(t_half, dt_norm)
                 
-                out += (naive + correction_0 - correction_half) * adsr_amp
+                voice_sample = (naive + correction_0 - correction_half) * adsr_amp
             case .Sawtooth:
                 naive := (2.0 * t) - 1.0
                 
-                out += (naive - polyblep(t, dt_norm)) * adsr_amp
+                voice_sample = (naive - polyblep(t, dt_norm)) * adsr_amp
             case .Triangle:
-                out += (2.0 * abs(2.0 * (v.phase / math.TAU) - 1.0) - 1.0) * adsr_amp
+                voice_sample = (2.0 * abs(2.0 * (v.phase / math.TAU) - 1.0) - 1.0) * adsr_amp
             }
+
+        filter.set_cutoff_simper_sin_svf(&v.filter, T(modulate.param_get(&state.cutoff)))
+        filter.set_res_simper_sin_svf(&v.filter, T(modulate.param_get(&state.res)))
+        out += filter.tick_sample_simper_sin_svf(&v.filter, voice_sample)
         
         phase_step := (2.0 * math.PI * play_freq) / state.sample_rate
         v.phase += phase_step
@@ -211,6 +224,14 @@ osc_set_sustain_gain :: proc(state: ^SimpleOscillatorState($T), gain: T) {
 
 osc_set_peak_gain :: proc(state: ^SimpleOscillatorState($T), gain: T) {
     state.peak_gain = gain
+}
+
+osc_set_cutoff :: proc(state: ^SimpleOscillatorState($T), cutoff: T) {
+    state.cutoff = cutoff
+}
+
+osc_set_res :: proc(state: ^SimpleOscillatorState($T), res: T) {
+    state.res = res
 }
 
 @(private)
