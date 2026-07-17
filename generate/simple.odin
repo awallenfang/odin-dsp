@@ -34,7 +34,7 @@ SimpleOscillatorState :: struct($T: typeid) where intrinsics.type_is_float(T) {
     peak_gain:    T,
     sustain_gain: T,
 
-    pitch_mod:    T,
+    retune:    modulate.ModParam(T),
 }
 
 osc_init :: proc(state: ^SimpleOscillatorState($T), sample_rate: f32, max_voices : int = 10) {
@@ -49,6 +49,7 @@ osc_init :: proc(state: ^SimpleOscillatorState($T), sample_rate: f32, max_voices
     state.peak_gain = 1.0
     state.sustain_gain = 0.0
 
+    modulate.param_init(&state.retune, 0., -10., 10., 0.)
     for &voice in state.voices {
         smoother: filter.SimperOnePoleState(T)
         filter.init_one_pole(&smoother, state.sample_rate, 0.01)
@@ -82,7 +83,7 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
         if v.current_frequency <= 0.0 do continue
         active_count += 1
 
-        play_freq := v.current_frequency * (1.0 + state.pitch_mod)
+        play_freq := v.current_frequency + T(modulate.param_get(&state.retune))
         if play_freq <= 0.0 do continue
 
         t := v.phase / math.TAU

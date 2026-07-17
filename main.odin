@@ -138,17 +138,11 @@ main :: proc() {
         modulate.lfo_set_amplitude(&lfo_state, 5.0)
 
         _ = modulate.matrix_add_lfo(&mod_matrix, &lfo_state)
-        _ = modulate.matrix_add_target(&mod_matrix, modulate.ModTarget(f32){
-            data = &osc_state,
-            apply = proc(data: rawptr, raw_mod: f32) {
-                state := (^generate.SimpleOscillatorState(f32))(data)
-                state.pitch_mod = raw_mod
-            },
-        })
+        _ = modulate.matrix_add_target(&mod_matrix, &osc_state.retune)
         modulate.matrix_add_route(&mod_matrix, modulate.ModRoute(f32){
             source_idx = 0,
             target_idx = 0,
-            depth      = 0.02,
+            depth      = 0.1,
             bipolar    = true,
         })
 

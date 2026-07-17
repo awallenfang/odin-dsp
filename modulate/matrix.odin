@@ -19,7 +19,7 @@ ModRoute :: struct($T: typeid) {
 
 ModulationMatrix :: struct($T: typeid) {
     sources: [dynamic]ModSource(T),
-    targets: [dynamic]ModTarget(T),
+    targets: [dynamic]^ModParam(T),
     routes:  [dynamic]ModRoute(T),
     cache:   [dynamic]T
 }
@@ -38,7 +38,7 @@ matrix_add_lfo :: proc(m: ^ModulationMatrix($T), lfo: ^LFOState(T)) -> int {
     return idx
 }
 
-matrix_add_target :: proc(m: ^ModulationMatrix($T), target: ModTarget(T)) -> int {
+matrix_add_target :: proc(m: ^ModulationMatrix($T), target: ^ModParam(T)) -> int {
     idx := len(m.targets)
     append(&m.targets, target)
     return idx
@@ -71,7 +71,7 @@ matrix_tick :: proc(m: ^ModulationMatrix($T)) {
             val *= route.depth
         }
 
-        target.apply(target.data, val)
+        target.mod = val
     }
 }
 
