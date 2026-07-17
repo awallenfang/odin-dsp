@@ -2,6 +2,7 @@ package filter
 
 import "core:math"
 import "base:intrinsics"
+import "../modulate"
 
 MoogMode :: enum {
     Lowpass6,
@@ -22,9 +23,9 @@ MoogFilterState :: struct($T: typeid) where intrinsics.type_is_float(T) {
     s3:          T,
     s4:          T,
     
-    cutoff:      T,
+    cutoff:      modulate.ModParam(T),
     sample_rate: T,
-    res:         T,
+    res:         modulate.ModParam(T),
     
     g:           T,
     G:           T,
@@ -42,18 +43,19 @@ init_moog :: proc(state: ^MoogFilterState($T), sample_rate: T) {
     state.sample_rate = sample_rate
     state.mode = .Lowpass24
 
-    set_res_moog(state, 0.2)
-    set_cutoff_moog(state, 1000.0) 
+    modulate.param_init(&state.res, T(0.2), 0., 1., 0.2)
+    modulate.param_init(&state.cutoff, T(1000.), 10., 24000., 1000.)
+    reinit_moog(state)
 }
 
 set_cutoff_moog :: proc(state: ^MoogFilterState($T), cutoff: T) {
     max_safe_cutoff := (state.sample_rate / 2.) - 10.0
-    state.cutoff = math.clamp(cutoff, 10.0, max_safe_cutoff)
+    modulate.param_set(&state.cutoff, math.clamp(cutoff, 10.0, max_safe_cutoff))
     reinit_moog(state)
 }
 
 set_res_moog :: proc(state: ^MoogFilterState($T), res: T) {
-    state.res = math.clamp(res, 0.0, 1.0)
+    modulate.param_set(&state.res, math.clamp(res, 0.0, 1.0))
     reinit_moog(state)
 }
 
@@ -96,11 +98,11 @@ tick_sample_full_moog :: proc(state: ^MoogFilterState($T), sample: T) -> (T, T, 
 
 @(private)
 reinit_moog :: proc(state: ^MoogFilterState($T)) {
-    state.g = math.tan(math.PI * state.cutoff / state.sample_rate)
+    state.g = math.tan(math.PI * modulate.param_get(&state.cutoff) / state.sample_rate)
     
     state.G = state.g / (1. + state.g)
 
-    state.k = state.res * 4.0 
+    state.k = modulate.param_get(&state.res) * 4.0 
 }
 
 tick_sample_moog :: proc(state: ^MoogFilterState($T), sample: T) -> T {

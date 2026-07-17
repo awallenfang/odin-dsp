@@ -3,6 +3,7 @@ package filter
 import "core:time"
 import "core:math"
 import "base:intrinsics"
+import "../modulate"
 
 /*
 ###### Simper SVF filters ######
@@ -26,10 +27,10 @@ SimperFilterState :: union($T: typeid) {
 SimperTanSVFState :: struct($T: typeid) where intrinsics.type_is_float(T) {
     ic1eq:       T,
     ic2eq:       T,
-    cutoff:      T,
+    cutoff:      modulate.ModParam(T),
     sample_rate: f32,
     g:           T,
-    res:         T,
+    res:         modulate.ModParam(T),
     k:           T,
     a1:          T,
     a2:          T,
@@ -42,18 +43,19 @@ init_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), sample_rate: f32) {
     state.sample_rate = sample_rate
     state.mode = .Low
 
-    set_res_simper_tan_svf(state, 0.2)
-    set_cutoff_simper_tan_svf(state, 1000.0) // Safe initial frequency
+    modulate.param_init(&state.res, T(0.2), 0., 0.99, 0.2)
+    modulate.param_init(&state.cutoff, T(1000.), 10., 24000., 1000.)
+    reinit_simper_tan_svf(state)
 }
 
 set_cutoff_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), cutoff: T) {
     max_safe_cutoff := (state.sample_rate / 2.) - 10.0
-    state.cutoff = math.clamp(cutoff, 10.0, max_safe_cutoff)
+    modulate.param_set(&state.cutoff, math.clamp(cutoff, 10.0, max_safe_cutoff))
     reinit_simper_tan_svf(state)
 }
 
 set_res_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), res: T) {
-    state.res = math.clamp(res, 0.0, 0.99)
+    modulate.param_set(&state.res, math.clamp(res, 0.0, 0.99))
     reinit_simper_tan_svf(state)
 }
 
@@ -92,9 +94,9 @@ tick_sample_simper_tan_svf :: proc(state: ^SimperTanSVFState($T), sample: T) -> 
 
 @(private)
 reinit_simper_tan_svf :: proc(state: ^SimperTanSVFState($T)) {
-    state.g = math.tan(math.PI * state.cutoff / state.sample_rate)
+    state.g = math.tan(math.PI * modulate.param_get(&state.cutoff) / state.sample_rate)
     
-    q := 1.0 / (2.0 * (1.0 - state.res))
+    q := 1.0 / (2.0 * (1.0 - modulate.param_get(&state.res)))
     state.k = 1.0 / q
 
     state.a1 = 1. / (1. + state.g * state.k + state.g * state.g)
@@ -103,8 +105,8 @@ reinit_simper_tan_svf :: proc(state: ^SimperTanSVFState($T)) {
 
 
 SimperSinSVFState :: struct($T: typeid) where intrinsics.type_is_float(T) {
-    res:         T,
-    cutoff:      T,
+    res:         modulate.ModParam(T),
+    cutoff:      modulate.ModParam(T),
     sample_rate: f32,
     ic1eq:       T,
     ic2eq:       T,
@@ -121,13 +123,14 @@ init_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), sample_rate: f32) {
     state.sample_rate = sample_rate
     state.mode = .Low
 
-    set_res_simper_sin_svf(state, 0.2)
-    set_cutoff_simper_sin_svf(state, 500.0)
+    modulate.param_init(&state.res, T(0.2), 0., 1., 0.2)
+    modulate.param_init(&state.cutoff, T(500.), 10., 24000., 500.)
+    reinit_simper_sin_svf(state)
 }
 
 set_cutoff_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), cutoff: T) {
     max_safe_cutoff := (state.sample_rate / 2.0) - 10.0
-    state.cutoff = math.clamp(cutoff, 10.0, max_safe_cutoff)
+    modulate.param_set(&state.cutoff, math.clamp(cutoff, 10.0, max_safe_cutoff))
     reinit_simper_sin_svf(state)
 }
 
@@ -137,7 +140,7 @@ set_sample_rate_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), sample_rat
 }
 
 set_res_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), res: T) {
-    state.res = math.clamp(res, 0.0, 1.0)
+    modulate.param_set(&state.res, math.clamp(res, 0.0, 1.0))
     reinit_simper_sin_svf(state)
 }
 
@@ -147,9 +150,9 @@ set_mode_simper_sin_svf :: proc(state: ^SimperSinSVFState($T), mode: SVFFilterMo
 
 @(private)
 reinit_simper_sin_svf :: proc(state: ^SimperSinSVFState($T)) {
-    w := math.PI * state.cutoff / state.sample_rate
+    w := math.PI * modulate.param_get(&state.cutoff) / state.sample_rate
 
-    state.k = 2.0 - 1.45 * state.res
+    state.k = 2.0 - 1.45 * modulate.param_get(&state.res)
 
     s1 := math.sin(w)
     s2 := math.sin(2.0 * w)

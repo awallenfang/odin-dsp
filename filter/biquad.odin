@@ -2,6 +2,7 @@ package filter
 
 import "core:math"
 import "base:intrinsics"
+import "../modulate"
 
 BiquadMode :: enum {
     Lowpass,
@@ -56,10 +57,10 @@ BiquadFilterStateDF1 :: struct($T: typeid) where intrinsics.type_is_float(T) {
     y1:          T,
     y2:          T,
 
-    cutoff:      T,
+    cutoff:      modulate.ModParam(T),
     sample_rate: T,
-    q:           T,
-    peak_gain:   T,
+    q:           modulate.ModParam(T),
+    peak_gain:   modulate.ModParam(T),
 
     b0:          T,
     b1:          T,
@@ -77,22 +78,23 @@ init_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T), sample_rate: T) {
     state.y2 = 0.
     
     state.sample_rate = sample_rate
-    state.peak_gain = 1.0 
     
     state.mode = .Lowpass
 
-    set_q_biquad_df1(state, 0.707)      
-    set_cutoff_biquad_df1(state, 1000.0)
+    modulate.param_init(&state.q, T(0.707), 0.1, 100., 0.707)
+    modulate.param_init(&state.peak_gain, T(1.0), 0.001, 1000., 1.0)
+    modulate.param_init(&state.cutoff, T(1000.), 10., 24000., 1000.)
+    reinit_biquad_df1(state)
 }
 
 set_cutoff_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T), cutoff: T) {
     max_safe_cutoff := (state.sample_rate / 2.) - 10.0
-    state.cutoff = math.clamp(cutoff, 10.0, max_safe_cutoff)
+    modulate.param_set(&state.cutoff, math.clamp(cutoff, 10.0, max_safe_cutoff))
     reinit_biquad_df1(state)
 }
 
 set_q_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T), q: T) {
-    state.q = math.clamp(q, 0.1, 100.0)
+    modulate.param_set(&state.q, math.clamp(q, 0.1, 100.0))
     reinit_biquad_df1(state)
 }
 
@@ -102,7 +104,7 @@ set_mode_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T), mode: BiquadMode) 
 }
 
 set_peak_gain_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T), linear_gain: T) {
-    state.peak_gain = math.max(linear_gain, 0.001) 
+    modulate.param_set(&state.peak_gain, math.max(linear_gain, 0.001))
     #partial switch state.mode {
         case .Peak, .LowShelf, .HighShelf:
             reinit_biquad_df1(state)
@@ -133,11 +135,11 @@ tick_sample_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T), sample: T) -> T
 @(private)
 reinit_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T)) {
     // https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
-    w0 := 2.0 * T(math.PI) * (state.cutoff / state.sample_rate)
+    w0 := 2.0 * T(math.PI) * (modulate.param_get(&state.cutoff) / state.sample_rate)
     cos_w0 := math.cos(w0)
     sin_w0 := math.sin(w0)
     
-    alpha := sin_w0 / (2.0 * state.q)
+    alpha := sin_w0 / (2.0 * modulate.param_get(&state.q))
 
     b0, b1, b2, a0, a1, a2: T
 
@@ -175,7 +177,7 @@ reinit_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T)) {
             a2 =  1.0 - alpha
             
         case .Peak:
-            A := math.sqrt(state.peak_gain)
+            A := math.sqrt(modulate.param_get(&state.peak_gain))
             
             b0 =  1.0 + alpha * A
             b1 = -2.0 * cos_w0
@@ -192,7 +194,7 @@ reinit_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T)) {
             a2 =  1.0 - alpha
 
         case .LowShelf:
-            A := math.sqrt(state.peak_gain)
+            A := math.sqrt(modulate.param_get(&state.peak_gain))
             sqrt_A := math.sqrt(A)
             
             b0 =      A * ( (A + 1.0) - (A - 1.0) * cos_w0 + 2.0 * sqrt_A * alpha )
@@ -203,7 +205,7 @@ reinit_biquad_df1 :: proc(state: ^BiquadFilterStateDF1($T)) {
             a2 =            (A + 1.0) + (A - 1.0) * cos_w0 - 2.0 * sqrt_A * alpha
 
         case .HighShelf:
-            A := math.sqrt(state.peak_gain)
+            A := math.sqrt(modulate.param_get(&state.peak_gain))
             sqrt_A := math.sqrt(A)
 
             b0 =      A * ( (A + 1.0) + (A - 1.0) * cos_w0 + 2.0 * sqrt_A * alpha )
@@ -229,10 +231,10 @@ BiquadFilterStateTDF2 :: struct($T: typeid) where intrinsics.type_is_float(T) {
     s1:          T,
     s2:          T,
 
-    cutoff:      T,
+    cutoff:      modulate.ModParam(T),
     sample_rate: T,
-    q:           T,
-    peak_gain:   T,
+    q:           modulate.ModParam(T),
+    peak_gain:   modulate.ModParam(T),
 
     b0:          T,
     b1:          T,
@@ -248,22 +250,23 @@ init_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), sample_rate: T) {
     state.s2 = 0.
     
     state.sample_rate = sample_rate
-    state.peak_gain = 1.0 
     
     state.mode = .Lowpass
 
-    set_q_biquad_tdf2(state, 0.707)      
-    set_cutoff_biquad_tdf2(state, 1000.0)
+    modulate.param_init(&state.q, T(0.707), 0.1, 100., 0.707)
+    modulate.param_init(&state.peak_gain, T(1.0), 0.001, 1000., 1.0)
+    modulate.param_init(&state.cutoff, T(1000.), 10., 24000., 1000.)
+    reinit_biquad_tdf2(state)
 }
 
 set_cutoff_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), cutoff: T) {
     max_safe_cutoff := (state.sample_rate / 2.) - 10.0
-    state.cutoff = math.clamp(cutoff, 10.0, max_safe_cutoff)
+    modulate.param_set(&state.cutoff, math.clamp(cutoff, 10.0, max_safe_cutoff))
     reinit_biquad_tdf2(state)
 }
 
 set_q_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), q: T) {
-    state.q = math.clamp(q, 0.1, 100.0)
+    modulate.param_set(&state.q, math.clamp(q, 0.1, 100.0))
     reinit_biquad_tdf2(state)
 }
 
@@ -273,7 +276,7 @@ set_mode_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), mode: BiquadMode
 }
 
 set_peak_gain_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), linear_gain: T) {
-    state.peak_gain = math.max(linear_gain, 0.001) 
+    modulate.param_set(&state.peak_gain, math.max(linear_gain, 0.001))
     #partial switch state.mode {
         case .Peak, .LowShelf, .HighShelf:
             reinit_biquad_tdf2(state)
@@ -298,11 +301,11 @@ tick_sample_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T), sample: T) ->
 @(private)
 reinit_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T)) {
     // https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
-    w0 := 2.0 * T(math.PI) * (state.cutoff / state.sample_rate)
+    w0 := 2.0 * T(math.PI) * (modulate.param_get(&state.cutoff) / state.sample_rate)
     cos_w0 := math.cos(w0)
     sin_w0 := math.sin(w0)
     
-    alpha := sin_w0 / (2.0 * state.q)
+    alpha := sin_w0 / (2.0 * modulate.param_get(&state.q))
 
     b0, b1, b2, a0, a1, a2: T
 
@@ -340,7 +343,7 @@ reinit_biquad_tdf2 :: proc(state: ^BiquadFilterStateTDF2($T)) {
             a2 =  1.0 - alpha
             
         case .Peak:
-            A := math.sqrt(state.peak_gain)
+            A := math.sqrt(modulate.param_get(&state.peak_gain))
             
             b0 =  1.0 + alpha * A
             b1 = -2.0 * cos_w0
@@ -357,7 +360,7 @@ case .Allpass:
             a2 =  1.0 - alpha
 
         case .LowShelf:
-            A := math.sqrt(state.peak_gain)
+            A := math.sqrt(modulate.param_get(&state.peak_gain))
             sqrt_A := math.sqrt(A)
             
             b0 =      A * ( (A + 1.0) - (A - 1.0) * cos_w0 + 2.0 * sqrt_A * alpha )
@@ -368,7 +371,7 @@ case .Allpass:
             a2 =            (A + 1.0) + (A - 1.0) * cos_w0 - 2.0 * sqrt_A * alpha
 
         case .HighShelf:
-            A := math.sqrt(state.peak_gain)
+            A := math.sqrt(modulate.param_get(&state.peak_gain))
             sqrt_A := math.sqrt(A)
 
             b0 =      A * ( (A + 1.0) + (A - 1.0) * cos_w0 + 2.0 * sqrt_A * alpha )

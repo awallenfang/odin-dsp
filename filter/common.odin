@@ -1,4 +1,21 @@
 package filter
+import "base:intrinsics"
+
+FilterType :: enum {
+    SimperSinSVF,
+    SimperTanSVF,
+    Moog,
+    BiquadDF1,
+    BiquadTDF2,
+}
+
+FilterState :: union($T: typeid) {
+    SimperSinSVFState(T),
+    SimperTanSVFState(T),
+    MoogFilterState(T),
+    BiquadFilterStateDF1(T),
+    BiquadFilterStateTDF2(T),
+}
 
 init :: proc{
     init_biquad_df1,

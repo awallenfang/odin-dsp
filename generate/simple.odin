@@ -40,6 +40,8 @@ SimpleOscillatorState :: struct($T: typeid) where intrinsics.type_is_float(T) {
 
     cutoff:         modulate.ModParam(T),
     res:            modulate.ModParam(T),
+    q:              modulate.ModParam(T),
+    filter_peak_gain: modulate.ModParam(T),
 }
 
 osc_init :: proc(
@@ -68,11 +70,13 @@ osc_init :: proc(
     modulate.param_init(&state.detune, 0., -10., 10., 0.)
     modulate.param_init(&state.cutoff, T(1500.), 10., 24000., 0.1)
     modulate.param_init(&state.res, T(0.2), 0., 1., 0.1)
+    modulate.param_init(&state.q, T(0.707), 0.1, 100., 0.707)
+    modulate.param_init(&state.filter_peak_gain, T(1.0), 0.001, 1000., 1.0)
     for &voice in state.voices {
         smoother: filter.SimperOnePoleState(T)
         filter.init_one_pole(&smoother, state.sample_rate, 0.01)
         voice.adsr_smoothing = smoother
-        filter.init_simper_sin_svf(&voice.filter, state.sample_rate)
+        filter.init(&voice.filter, state.sample_rate)
     }
 
     
@@ -134,9 +138,10 @@ osc_tick :: proc(state: ^SimpleOscillatorState($T), dt: T) -> T {
                 voice_sample = (2.0 * abs(2.0 * (v.phase / math.TAU) - 1.0) - 1.0) * adsr_amp
             }
 
-        filter.set_cutoff_simper_sin_svf(&v.filter, T(modulate.param_get(&state.cutoff)))
-        filter.set_res_simper_sin_svf(&v.filter, T(modulate.param_get(&state.res)))
-        out += filter.tick_sample_simper_sin_svf(&v.filter, voice_sample)
+        f := &v.filter
+        filter.set_cutoff_simper_sin_svf(f, T(modulate.param_get(&state.cutoff)))
+        filter.set_res_simper_sin_svf(f, T(modulate.param_get(&state.res)))
+        out += filter.tick_sample_simper_sin_svf(f, voice_sample)
         
         phase_step := (2.0 * math.PI * play_freq) / state.sample_rate
         v.phase += phase_step
@@ -232,6 +237,14 @@ osc_set_cutoff :: proc(state: ^SimpleOscillatorState($T), cutoff: T) {
 
 osc_set_res :: proc(state: ^SimpleOscillatorState($T), res: T) {
     state.res = res
+}
+
+osc_set_q :: proc(state: ^SimpleOscillatorState($T), q: T) {
+    state.q = q
+}
+
+osc_set_filter_peak_gain :: proc(state: ^SimpleOscillatorState($T), gain: T) {
+    state.filter_peak_gain = gain
 }
 
 @(private)

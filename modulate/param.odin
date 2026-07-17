@@ -18,7 +18,7 @@ param_init :: proc(p: ^ModParam($T), base: T, min: T, max: T, default: T) {
 }
 
 param_set :: proc(p: ^ModParam($T), base: T) {
-    p.base = clamp(base, min, max)
+    p.base = clamp(base, p.min, p.max)
 }
 
 param_get :: proc(p: ^ModParam($T)) -> T {

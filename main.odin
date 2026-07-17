@@ -1,6 +1,7 @@
 package odin_dsp
 
 import "./generate"
+import "./filter"
 import "./modulate"
 import "core:time"
 import "base:runtime"
