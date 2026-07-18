@@ -107,3 +107,51 @@ test_case_4 :: proc(t: ^testing.T) {
 	fft(&signal)
 	expect_close(t, signal[:], expected)
 }
+
+@test
+test_ifft_roundtrip :: proc(t: ^testing.T) {
+	original := [dynamic]complex32{
+		complex(1.0, 0.0), complex(2.0, 1.0), complex(3.0, 0.0), complex(4.0, -1.0),
+		complex(5.0, 2.0), complex(6.0, 0.0), complex(7.0, -2.0), complex(8.0, 1.0),
+	}
+	defer delete(original)
+	signal := [dynamic]complex32{}
+	reserve(&signal, len(original))
+	for v in original { append(&signal, v) }
+	defer delete(signal)
+
+	fft(&signal)
+	ifft(&signal, len(original))
+	expect_close(t, signal[:], original[:])
+}
+
+@test
+test_ifft_non_power_of_two :: proc(t: ^testing.T) {
+	original := [dynamic]complex32{
+		complex(1.0, 0.0), complex(2.0, 0.0), complex(3.0, 0.0),
+	}
+	defer delete(original)
+	signal := [dynamic]complex32{}
+	reserve(&signal, len(original))
+	for v in original { append(&signal, v) }
+	defer delete(signal)
+
+	fft(&signal)
+	testing.expectf(t, len(signal) == 4, "expected padded to 4, got %d", len(signal))
+
+	ifft(&signal, len(original))
+	testing.expectf(t, len(signal) == 3, "expected truncated to 3, got %d", len(signal))
+
+	expect_close(t, signal[:], original[:])
+}
+
+@test
+test_fft_single_element :: proc(t: ^testing.T) {
+	signal := [dynamic]complex32{complex(42.0, -7.0)}
+	defer delete(signal)
+
+	fft(&signal)
+	testing.expectf(t, len(signal) == 1, "expected 1 element, got %d", len(signal))
+	testing.expectf(t, real(signal[0]) == 42.0, "expected real 42, got %v", real(signal[0]))
+	testing.expectf(t, imag(signal[0]) == -7.0, "expected imag -7, got %v", imag(signal[0]))
+}
